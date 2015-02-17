@@ -3,9 +3,9 @@ using SlimDX.Direct2D;
 
 namespace dx_book {
     /// <summary>
-    /// Base class for custom DirectX objects that need to re-init themselves when the graphics device is lost
+    /// Base class for custom Direct2D objects that need to re-init themselves when the graphics device is lost
     /// </summary>
-    public abstract class DxComponent : DisposableClass {
+    public abstract class D2DComponent : DisposableClass {
         private bool _disposed;
 
         /// <summary>
@@ -26,7 +26,8 @@ namespace dx_book {
         /// <summary>
         /// Load device-dependent resources
         /// </summary>
-        public abstract void AquireResources();
+        /// <param name="renderTarget"></param>
+        public abstract void AquireResources(RenderTarget renderTarget);
         /// <summary>
         /// Release device-dependent resources
         /// </summary>

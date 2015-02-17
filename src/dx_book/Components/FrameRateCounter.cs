@@ -8,7 +8,7 @@ namespace dx_book {
     /// <summary>
     /// Simple component to record and display framerate
     /// </summary>
-    public class FrameRateCounter :DxComponent {
+    public class FrameRateCounter :D2DComponent {
         private int _frameCount;
         private float _timeElapsed;
         private readonly GameTimer _timer;
@@ -103,11 +103,13 @@ namespace dx_book {
             var s = string.Format("FPS: {0} Frame Time: {1} (ms)", FPS, FrameTime);
             renderTarget.DrawText(s, _defaultTextFormat, Bounds, _textBrush);
         }
+
         /// <summary>
         /// Aquire device-dependent resources
         /// </summary>
-        public override void AquireResources() {
-            _textBrush = new SolidColorBrush(App.GApp.D2DRenderTarget, Color);
+        /// <param name="renderTarget"></param>
+        public override void AquireResources(RenderTarget renderTarget) {
+            _textBrush = new SolidColorBrush(renderTarget, Color);
             if (_defaultTextFormat == null) {
                 _defaultTextFormat = App.DirectWriteFactory.CreateTextFormat("Consolas", FontWeight.Normal, FontStyle.Normal, FontStretch.Normal, 14.0f, "en-us");
             }
