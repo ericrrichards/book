@@ -1,10 +1,28 @@
 ﻿using System;
+using System.Drawing;
+using System.Runtime.InteropServices;
+using SlimDX;
 
 namespace Chapter2Pong.Engine {
     /// <summary>
     /// Catch-all utility class
     /// </summary>
     public static class Util {
+        private static readonly Random Rand;
+
+        static Util()  {
+            Rand = new Random();
+        }
+
+        public static bool RandomBool() {
+            return Rand.Next()%2 == 0;
+        }
+
+        public static float Random(float min, float max) {
+            double mantissa = Rand.NextDouble();
+            return min + ((float)(mantissa)) * (max-min) ;
+        }
+
         /// <summary>
         /// Utility method to release COM DirectX objects cleanly
         /// Object reference will be null after this method returns
@@ -34,6 +52,17 @@ namespace Chapter2Pong.Engine {
         /// <returns>high 16-bits</returns>
         public static int HighWord(this int i) {
             return (i >> 16) & 0xFFFF;
+        }
+
+        public static PointF ToPointF( this Vector2 v) {
+            return new PointF(v.X, v.Y);
+        }
+
+        [DllImport("user32.dll")]
+        static extern short GetAsyncKeyState(System.Windows.Forms.Keys vKey);
+
+        public static bool IsKeyDown(System.Windows.Forms.Keys key) {
+            return (GetAsyncKeyState(key) & 0x8000) != 0;
         }
     }
 }

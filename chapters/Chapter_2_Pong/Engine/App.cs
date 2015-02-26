@@ -390,7 +390,7 @@ namespace Chapter2Pong.Engine {
         /// <summary>
         /// Resize swapchain buffers and handle deallocating and reaquiring device-dependent resources
         /// </summary>
-        private void OnResize() {
+        protected virtual void OnResize() {
             Log.Debug("Resizing");
 
             // release all the objects that reference the backbuffer surface

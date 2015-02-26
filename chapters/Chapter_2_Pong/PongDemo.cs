@@ -16,16 +16,26 @@ namespace Chapter2Pong {
         private SolidColorBrush _greenSolidBrush;
         private TextFormat _defaultTextFormat;
 
-        private Buffer _vertexBuffer;
-        private const string ShaderCode = "float4 VShader(float4 position:POSITION):SV_POSITION { return position; }\n" +
-                                          "float4 PShader(float4 position: SV_POSITION) : SV_Target { return float4(0.3f, 0.3f, 0.3f, 1.0f);}";
-        private VertexShader _vShader;
-        private PixelShader _pShader;
-        private InputLayout _layout;
+        private Rectangle _gameBounds;
+
+        private float _maxSpeed = 50.0f;
+
+        private Vector2 _ballPos;
+        private Vector2 _ballVelocity;
+
+
+        private Rectangle _paddle1;
+        private Rectangle _paddle2 ;
+
+        SolidColorBrush _whiteBrush;
+        private StrokeStyle _strokeStyle;
+        private Ellipse _ellipse;
 
         private PongDemo() {
-            MainWindowCaption = "Hello World Direct2D & DirectWrite";
+            MainWindowCaption = "Pong.net";
             Enable4XMsaa = true;
+
+            
         }
 
         protected override void Dispose(bool disposing) {
@@ -34,10 +44,8 @@ namespace Chapter2Pong {
                     Util.ReleaseCom(ref _greenSolidBrush);
                     Util.ReleaseCom(ref _defaultTextFormat);
 
-                    Util.ReleaseCom(ref _vertexBuffer);
-                    Util.ReleaseCom(ref _vShader);
-                    Util.ReleaseCom(ref _pShader);
-                    Util.ReleaseCom(ref _layout);
+                    Util.ReleaseCom(ref _whiteBrush);
+                    Util.ReleaseCom(ref _strokeStyle);
                 }
                 _disposed = true;
             }
@@ -60,45 +68,85 @@ namespace Chapter2Pong {
             _defaultTextFormat.TextAlignment = TextAlignment.Center;
             _defaultTextFormat.ParagraphAlignment = ParagraphAlignment.Center;
 
-            FpsCounter.Visible = true;
+            //FpsCounter.Visible = true;
 
+            var bounds = Window.ClientRectangle;
 
-            var vertices = new DataStream(12 * 3, true, true);
-            vertices.Write(new Vector3(0, 0.5f, 0.5f));
-            vertices.Write(new Vector3(0.5f, -0.5f, 0.5f));
-            vertices.Write(new Vector3(-0.5f, -0.5f, 0.5f));
-            vertices.Position = 0;
-            _vertexBuffer = new Buffer(Device, vertices, 12 * 3, ResourceUsage.Default, BindFlags.VertexBuffer, CpuAccessFlags.None, ResourceOptionFlags.None, 0);
+            var marginSides = bounds.Width/10;
+            var marginTop = bounds.Height/5;
 
-            using (var bytecode = ShaderBytecode.Compile(Encoding.UTF8.GetBytes(ShaderCode), "VShader", "vs_4_0", ShaderFlags.None, EffectFlags.None)) {
-                _vShader = new VertexShader(Device, bytecode);
-                _layout = new InputLayout(Device, bytecode, new[] { new InputElement("POSITION", 0, Format.R32G32B32_Float, 0) });
-            }
-            using (var bytecode = ShaderBytecode.Compile(Encoding.UTF8.GetBytes(ShaderCode), "PShader", "ps_4_0", ShaderFlags.None, EffectFlags.None)) {
-                _pShader = new PixelShader(Device, bytecode);
-            }
+            _gameBounds = new Rectangle(bounds.Left + marginSides, bounds.Top + marginTop, bounds.Width-(2*marginSides), bounds.Height-(2*marginTop));
+
+            ResetBall();
+
+            _whiteBrush = new SolidColorBrush(D2DRenderTarget, Color.White);
+            _strokeStyle = new StrokeStyle(
+                Direct2DFactory,
+                new StrokeStyleProperties {
+                    DashStyle = DashStyle.Dash
+                }
+            );
+
 
             return true;
         }
 
-        protected override void OnMouseDown(object sender, MouseEventArgs e) {
-            FpsCounter.Visible = !FpsCounter.Visible;
+        private void ResetBall() {
+            _ballPos = new Vector2(_gameBounds.Left + _gameBounds.Width/2, _gameBounds.Top + _gameBounds.Height/2);
+            _ellipse = new Ellipse() {Center = _ballPos.ToPointF(), RadiusX = 5, RadiusY = 5};
+            _ballVelocity = new Vector2(Util.RandomBool() ? 1 : -1, Util.Random(-0.5f, 0.5f));
+            _ballVelocity = Vector2.Normalize(_ballVelocity)*_maxSpeed;
+        }
 
+        protected override void UpdateScene(float dt) {
+            base.UpdateScene(dt);
+
+            _ballPos = _ballPos + _ballVelocity*dt;
+            _ellipse.Center = _ballPos.ToPointF();
+
+            if (Util.IsKeyDown(Keys.Space)) {
+                ResetBall();
+            }
+
+            if (CircleIntersectsLine(_ballPos, _ellipse.RadiusX, new PointF(_gameBounds.Left, _gameBounds.Top), new PointF(_gameBounds.Left, _gameBounds.Bottom))) {
+                ResetBall();
+            } else if (CircleIntersectsLine(_ballPos, _ellipse.RadiusX, new PointF(_gameBounds.Right, _gameBounds.Top), new PointF(_gameBounds.Right, _gameBounds.Bottom))) {
+                ResetBall();
+            }
+        }
+
+        public bool CircleIntersectsLine(Vector2 center, float r, PointF p0, PointF p1) {
+            var dx = p1.X - p0.X;
+            var dy = p1.Y - p0.Y;
+
+            var a = dx*dx + dy*dy;
+            var b = 2*(dx*(p0.X - center.X) + dy*(p0.Y - center.Y));
+            var c = (p0.X - center.X)*(p0.X - center.X) + (p0.Y - center.Y)*(p0.Y - center.Y) - (r*r);
+
+            var det = b*b - r*a*c;
+            if (a <= 0.0000001 || det < 0) {
+                return false;
+            } else {
+                return true;
+            }
         }
 
         protected override void DrawScene() {
 
-            ImmediateContext.InputAssembler.InputLayout = _layout;
-            ImmediateContext.InputAssembler.PrimitiveTopology = PrimitiveTopology.TriangleList;
-
-            ImmediateContext.InputAssembler.SetVertexBuffers(0, new VertexBufferBinding(_vertexBuffer, 12, 0));
-            ImmediateContext.VertexShader.Set(_vShader);
-            ImmediateContext.PixelShader.Set(_pShader);
-
-            ImmediateContext.Draw(3,0);
 
             D2DRenderTarget.BeginDraw();
-            D2DRenderTarget.DrawText("Hello World!", _defaultTextFormat, new Rectangle(0, 0, ClientWidth, ClientHeight), _greenSolidBrush);
+            D2DRenderTarget.DrawText("Pong!", _defaultTextFormat, new Rectangle(0, 0, ClientWidth, 35), _greenSolidBrush);
+
+            D2DRenderTarget.DrawRectangle(_whiteBrush, _gameBounds, 2);
+            var x1 = (_gameBounds.Left + _gameBounds.Width*0.5f);
+
+            var p0 = new PointF(x1, _gameBounds.Top);
+            var p1 = new PointF(x1, _gameBounds.Bottom);
+
+            D2DRenderTarget.DrawLine(_whiteBrush, p0, p1,2, _strokeStyle);
+
+            D2DRenderTarget.FillEllipse(_whiteBrush, _ellipse);
+            
             D2DRenderTarget.EndDraw();
         }
 
