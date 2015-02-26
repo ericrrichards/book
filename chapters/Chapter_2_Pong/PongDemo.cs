@@ -25,7 +25,7 @@ namespace Chapter2Pong {
 
 
         private Rectangle _paddle1;
-        private Rectangle _paddle2 ;
+        private Rectangle _paddle2;
 
         SolidColorBrush _whiteBrush;
         private StrokeStyle _strokeStyle;
@@ -35,7 +35,7 @@ namespace Chapter2Pong {
             MainWindowCaption = "Pong.net";
             Enable4XMsaa = true;
 
-            
+
         }
 
         protected override void Dispose(bool disposing) {
@@ -72,10 +72,10 @@ namespace Chapter2Pong {
 
             var bounds = Window.ClientRectangle;
 
-            var marginSides = bounds.Width/10;
-            var marginTop = bounds.Height/5;
+            var marginSides = bounds.Width / 10;
+            var marginTop = bounds.Height / 5;
 
-            _gameBounds = new Rectangle(bounds.Left + marginSides, bounds.Top + marginTop, bounds.Width-(2*marginSides), bounds.Height-(2*marginTop));
+            _gameBounds = new Rectangle(bounds.Left + marginSides, bounds.Top + marginTop, bounds.Width - (2 * marginSides), bounds.Height - (2 * marginTop));
 
             ResetBall();
 
@@ -92,43 +92,45 @@ namespace Chapter2Pong {
         }
 
         private void ResetBall() {
-            _ballPos = new Vector2(_gameBounds.Left + _gameBounds.Width/2, _gameBounds.Top + _gameBounds.Height/2);
-            _ellipse = new Ellipse() {Center = _ballPos.ToPointF(), RadiusX = 5, RadiusY = 5};
+            _ballPos = new Vector2(_gameBounds.Left + _gameBounds.Width / 2, _gameBounds.Top + _gameBounds.Height / 2);
+            _ellipse = new Ellipse() { Center = _ballPos.ToPointF(), RadiusX = 5, RadiusY = 5 };
             _ballVelocity = new Vector2(Util.RandomBool() ? 1 : -1, Util.Random(-0.5f, 0.5f));
-            _ballVelocity = Vector2.Normalize(_ballVelocity)*_maxSpeed;
+            _ballVelocity = Vector2.Normalize(_ballVelocity) * _maxSpeed;
         }
 
         protected override void UpdateScene(float dt) {
             base.UpdateScene(dt);
 
-            _ballPos = _ballPos + _ballVelocity*dt;
+            _ballPos = _ballPos + _ballVelocity * dt;
             _ellipse.Center = _ballPos.ToPointF();
 
             if (Util.IsKeyDown(Keys.Space)) {
                 ResetBall();
             }
 
-            if (CircleIntersectsLine(_ballPos, _ellipse.RadiusX, new PointF(_gameBounds.Left, _gameBounds.Top), new PointF(_gameBounds.Left, _gameBounds.Bottom))) {
+            if (CircleIntersectsLine(_ballPos, _ellipse.RadiusX, new Vector2(_gameBounds.Left, _gameBounds.Top), new Vector2(_gameBounds.Left, _gameBounds.Bottom))) {
                 ResetBall();
-            } else if (CircleIntersectsLine(_ballPos, _ellipse.RadiusX, new PointF(_gameBounds.Right, _gameBounds.Top), new PointF(_gameBounds.Right, _gameBounds.Bottom))) {
+            } else if (CircleIntersectsLine(_ballPos, _ellipse.RadiusX, new Vector2(_gameBounds.Right, _gameBounds.Top), new Vector2(_gameBounds.Right, _gameBounds.Bottom))) {
                 ResetBall();
             }
         }
 
-        public bool CircleIntersectsLine(Vector2 center, float r, PointF p0, PointF p1) {
-            var dx = p1.X - p0.X;
-            var dy = p1.Y - p0.Y;
+        public bool CircleIntersectsLine(Vector2 center, float r, Vector2 p0, Vector2 p1) {
+            var ac = center - p0;
+            var ab = p1 - p0;
 
-            var a = dx*dx + dy*dy;
-            var b = 2*(dx*(p0.X - center.X) + dy*(p0.Y - center.Y));
-            var c = (p0.X - center.X)*(p0.X - center.X) + (p0.Y - center.Y)*(p0.Y - center.Y) - (r*r);
+            var ab2 = Vector2.Dot(ab, ab);
+            var acab = Vector2.Dot(ac, ab);
 
-            var det = b*b - r*a*c;
-            if (a <= 0.0000001 || det < 0) {
-                return false;
-            } else {
-                return true;
+            var t = acab / ab2;
+            if (t < 0) {
+                t = 0;
+            } else if (t > 1) {
+                t = 1;
             }
+            var h = ((ab*t) + p0) - center;
+            var h2 = Vector2.Dot(h, h);
+            return h2 < (r*r);
         }
 
         protected override void DrawScene() {
@@ -138,15 +140,15 @@ namespace Chapter2Pong {
             D2DRenderTarget.DrawText("Pong!", _defaultTextFormat, new Rectangle(0, 0, ClientWidth, 35), _greenSolidBrush);
 
             D2DRenderTarget.DrawRectangle(_whiteBrush, _gameBounds, 2);
-            var x1 = (_gameBounds.Left + _gameBounds.Width*0.5f);
+            var x1 = (_gameBounds.Left + _gameBounds.Width * 0.5f);
 
             var p0 = new PointF(x1, _gameBounds.Top);
             var p1 = new PointF(x1, _gameBounds.Bottom);
 
-            D2DRenderTarget.DrawLine(_whiteBrush, p0, p1,2, _strokeStyle);
+            D2DRenderTarget.DrawLine(_whiteBrush, p0, p1, 2, _strokeStyle);
 
             D2DRenderTarget.FillEllipse(_whiteBrush, _ellipse);
-            
+
             D2DRenderTarget.EndDraw();
         }
 
