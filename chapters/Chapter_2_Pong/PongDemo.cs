@@ -1,41 +1,49 @@
 ﻿using System.Drawing;
-using System.Text;
 using System.Windows.Forms;
 using Chapter2Pong.Engine;
 using SlimDX;
-using SlimDX.D3DCompiler;
 using SlimDX.Direct2D;
-using SlimDX.Direct3D11;
 using SlimDX.DirectWrite;
-using SlimDX.DXGI;
 using FontStyle = SlimDX.DirectWrite.FontStyle;
 
 namespace Chapter2Pong {
+    enum ServingPlayer {
+        LeftPlayer,
+        RightPlayer
+    }
+
     class PongDemo : App {
         private bool _disposed;
         private SolidColorBrush _greenSolidBrush;
         private TextFormat _defaultTextFormat;
 
-        private Rectangle _gameBounds;
+        private RectangleF _gameBounds;
 
-        private float _maxSpeed = 50.0f;
+        private float _maxSpeed = 100.0f;
+        private float _maxBallSpeed = 200.0f;
 
         private Vector2 _ballPos;
         private Vector2 _ballVelocity;
 
-
-        private Rectangle _paddle1;
-        private Rectangle _paddle2;
-
+        
         SolidColorBrush _whiteBrush;
         private StrokeStyle _strokeStyle;
         private Ellipse _ellipse;
 
+        private int _leftScore;
+        private int _rightScore;
+
+        private Vector2 _lpCenter;
+        private int _lpWidth = 50;
+        private Vector2 _rpCenter;
+        private int _rpWidth = 50;
+
+        private const int PaddleDepth = 10;
+
+
         private PongDemo() {
             MainWindowCaption = "Pong.net";
             Enable4XMsaa = true;
-
-
         }
 
         protected override void Dispose(bool disposing) {
@@ -77,7 +85,7 @@ namespace Chapter2Pong {
 
             _gameBounds = new Rectangle(bounds.Left + marginSides, bounds.Top + marginTop, bounds.Width - (2 * marginSides), bounds.Height - (2 * marginTop));
 
-            ResetBall();
+            ResetBall(Util.RandomBool() ? ServingPlayer.LeftPlayer : ServingPlayer.RightPlayer);
 
             _whiteBrush = new SolidColorBrush(D2DRenderTarget, Color.White);
             _strokeStyle = new StrokeStyle(
@@ -87,15 +95,17 @@ namespace Chapter2Pong {
                 }
             );
 
+            _lpCenter = new Vector2(_gameBounds.Left + 10, _gameBounds.Top + _gameBounds.Height *0.5f);
+            _rpCenter = new Vector2(_gameBounds.Right - 10, _gameBounds.Top + _gameBounds.Height * 0.5f);
 
             return true;
         }
 
-        private void ResetBall() {
+        private void ResetBall(ServingPlayer server) {
             _ballPos = new Vector2(_gameBounds.Left + _gameBounds.Width / 2, _gameBounds.Top + _gameBounds.Height / 2);
             _ellipse = new Ellipse() { Center = _ballPos.ToPointF(), RadiusX = 5, RadiusY = 5 };
-            _ballVelocity = new Vector2(Util.RandomBool() ? 1 : -1, Util.Random(-0.5f, 0.5f));
-            _ballVelocity = Vector2.Normalize(_ballVelocity) * _maxSpeed;
+            _ballVelocity = new Vector2(server == ServingPlayer.LeftPlayer ? 1 : -1, Util.Random(-0.75f, 0.75f));
+            _ballVelocity = Vector2.Normalize(_ballVelocity) * _maxBallSpeed;
         }
 
         protected override void UpdateScene(float dt) {
@@ -104,15 +114,60 @@ namespace Chapter2Pong {
             _ballPos = _ballPos + _ballVelocity * dt;
             _ellipse.Center = _ballPos.ToPointF();
 
-            if (Util.IsKeyDown(Keys.Space)) {
-                ResetBall();
+            if (CircleIntersectsLine(_ballPos, _ellipse.RadiusX, new Vector2(LeftPaddle.Right, LeftPaddle.Top), new Vector2(LeftPaddle.Right, LeftPaddle.Bottom))) {
+                _ballVelocity.X = -_ballVelocity.X;
+            } else if (CircleIntersectsLine(_ballPos, _ellipse.RadiusX, new Vector2(RightPaddle.Left, RightPaddle.Top), new Vector2(RightPaddle.Left, RightPaddle.Bottom))) {
+                _ballVelocity.X = -_ballVelocity.X;
             }
 
-            if (CircleIntersectsLine(_ballPos, _ellipse.RadiusX, new Vector2(_gameBounds.Left, _gameBounds.Top), new Vector2(_gameBounds.Left, _gameBounds.Bottom))) {
-                ResetBall();
-            } else if (CircleIntersectsLine(_ballPos, _ellipse.RadiusX, new Vector2(_gameBounds.Right, _gameBounds.Top), new Vector2(_gameBounds.Right, _gameBounds.Bottom))) {
-                ResetBall();
+            if (BallOutOnLeft()) {
+                _rightScore++;
+                ResetBall(ServingPlayer.LeftPlayer);
+            } else if (BallOutOnRight()) {
+                _leftScore++;
+                ResetBall(ServingPlayer.RightPlayer);
+            } else if (BallOutTop() || BallOutBottom()) {
+                _ballVelocity.Y = -_ballVelocity.Y;
             }
+
+            var oldLp = _lpCenter;
+            if (Util.IsKeyDown(Keys.Q)) {
+                _lpCenter.Y -= _maxSpeed * dt;
+            } else if (Util.IsKeyDown(Keys.A)) {
+                _lpCenter.Y += _maxSpeed * dt;
+            }
+            if (!_gameBounds.Contains(LeftPaddle)) {
+                _lpCenter = oldLp;
+            }
+
+            var oldRp = _rpCenter;
+            if (Util.IsKeyDown(Keys.Up)) {
+                _rpCenter.Y -= _maxSpeed * dt;
+            } else if (Util.IsKeyDown(Keys.Down)) {
+                _rpCenter.Y += _maxSpeed * dt;
+            }
+            if (!_gameBounds.Contains(RightPaddle)) {
+                _rpCenter = oldRp;
+            }
+
+        }
+
+        private RectangleF RightPaddle { get { return new RectangleF(_rpCenter.X - PaddleDepth * 0.5f, _rpCenter.Y - _rpWidth * 0.5f, PaddleDepth, _rpWidth); } }
+
+        private RectangleF LeftPaddle { get { return new RectangleF(_lpCenter.X - PaddleDepth * 0.5f, _lpCenter.Y - _lpWidth * 0.5f, PaddleDepth, _lpWidth); } }
+
+        private bool BallOutTop() {
+            return CircleIntersectsLine(_ballPos, _ellipse.RadiusX, new Vector2(_gameBounds.Left, _gameBounds.Top), new Vector2(_gameBounds.Right, _gameBounds.Top));
+        }
+        private bool BallOutBottom() {
+            return CircleIntersectsLine(_ballPos, _ellipse.RadiusX, new Vector2(_gameBounds.Left, _gameBounds.Bottom), new Vector2(_gameBounds.Right, _gameBounds.Bottom));
+        }
+        private bool BallOutOnRight() {
+            return CircleIntersectsLine(_ballPos, _ellipse.RadiusX, new Vector2(_gameBounds.Right, _gameBounds.Top), new Vector2(_gameBounds.Right, _gameBounds.Bottom));
+        }
+
+        private bool BallOutOnLeft() {
+            return CircleIntersectsLine(_ballPos, _ellipse.RadiusX, new Vector2(_gameBounds.Left, _gameBounds.Top), new Vector2(_gameBounds.Left, _gameBounds.Bottom));
         }
 
         public bool CircleIntersectsLine(Vector2 center, float r, Vector2 p0, Vector2 p1) {
@@ -141,14 +196,18 @@ namespace Chapter2Pong {
 
             D2DRenderTarget.DrawRectangle(_whiteBrush, _gameBounds, 2);
             var x1 = (_gameBounds.Left + _gameBounds.Width * 0.5f);
-
             var p0 = new PointF(x1, _gameBounds.Top);
             var p1 = new PointF(x1, _gameBounds.Bottom);
-
             D2DRenderTarget.DrawLine(_whiteBrush, p0, p1, 2, _strokeStyle);
+
+            
+            D2DRenderTarget.FillRectangle(_whiteBrush, LeftPaddle);
+            D2DRenderTarget.FillRectangle(_whiteBrush, RightPaddle);
 
             D2DRenderTarget.FillEllipse(_whiteBrush, _ellipse);
 
+            D2DRenderTarget.DrawText(_leftScore.ToString(), _defaultTextFormat, new Rectangle(10, 10, 50,50), _whiteBrush );
+            D2DRenderTarget.DrawText(_rightScore.ToString(), _defaultTextFormat, new Rectangle(ClientWidth-60, 10, 50, 50), _whiteBrush);
             D2DRenderTarget.EndDraw();
         }
 

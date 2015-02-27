@@ -44,6 +44,7 @@
     <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Ball.cs" />
     <Compile Include="Engine\App.cs" />
     <Compile Include="Engine\D3DForm.cs">
       <SubType>Form</SubType>
