@@ -52,6 +52,7 @@ namespace Chapter2Pong {
 
         public void BounceX() {
             _ballVelocity.Y = -_ballVelocity.Y;
+            _ballPos = _lastPallPos;
         }
 
         public void BounceY() {

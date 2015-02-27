@@ -72,16 +72,7 @@ namespace Chapter2Pong {
             _defaultTextFormat.TextAlignment = TextAlignment.Center;
             _defaultTextFormat.ParagraphAlignment = ParagraphAlignment.Center;
 
-            //FpsCounter.Visible = true;
-
-            var bounds = Window.ClientRectangle;
-
-            var marginSides = bounds.Width / 10;
-            var marginTop = bounds.Height / 5;
-
-            _gameBounds = new Rectangle(bounds.Left + marginSides, bounds.Top + marginTop, bounds.Width - (2 * marginSides), bounds.Height - (2 * marginTop));
-            _ball = new Ball(_gameBounds);
-            ResetBall(Util.RandomBool() ? ServingPlayer.LeftPlayer : ServingPlayer.RightPlayer);
+            FpsCounter.Visible = true;
 
             _whiteBrush = new SolidColorBrush(D2DRenderTarget, Color.White);
             _strokeStyle = new StrokeStyle(
@@ -91,14 +82,20 @@ namespace Chapter2Pong {
                 }
             );
 
+            var bounds = Window.ClientRectangle;
+
+            var marginSides = bounds.Width / 10;
+            var marginTop = bounds.Height / 5;
+
+            _gameBounds = new Rectangle(bounds.Left + marginSides, bounds.Top + marginTop, bounds.Width - (2 * marginSides), bounds.Height - (2 * marginTop));
+            _ball = new Ball(_gameBounds);
+            _ball.Reset(Util.RandomBool() ? ServingPlayer.LeftPlayer : ServingPlayer.RightPlayer);
+
+
             _lpCenter = new Vector2(_gameBounds.Left + 10, _gameBounds.Top + _gameBounds.Height *0.5f);
             _rpCenter = new Vector2(_gameBounds.Right - 10, _gameBounds.Top + _gameBounds.Height * 0.5f);
 
             return true;
-        }
-
-        private void ResetBall(ServingPlayer server) {
-            _ball.Reset(server);
         }
 
         protected override void UpdateScene(float dt) {
@@ -114,10 +111,10 @@ namespace Chapter2Pong {
 
             if (_ball.BallOutOnLeft()) {
                 _rightScore++;
-                ResetBall(ServingPlayer.LeftPlayer);
+                _ball.Reset(ServingPlayer.LeftPlayer);
             } else if (_ball.BallOutOnRight()) {
                 _leftScore++;
-                ResetBall(ServingPlayer.RightPlayer);
+                _ball.Reset(ServingPlayer.RightPlayer);
             } else if (_ball.BallOutTop() || _ball.BallOutBottom()) {
                 _ball.BounceX();
                 
