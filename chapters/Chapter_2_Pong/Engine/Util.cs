@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Windows.Forms;
 using SlimDX;
 
 namespace Chapter2Pong.Engine {
@@ -59,10 +60,28 @@ namespace Chapter2Pong.Engine {
         }
 
         [DllImport("user32.dll")]
-        static extern short GetAsyncKeyState(System.Windows.Forms.Keys vKey);
+        static extern short GetAsyncKeyState(Keys vKey);
 
-        public static bool IsKeyDown(System.Windows.Forms.Keys key) {
+        public static bool IsKeyDown(Keys key) {
             return (GetAsyncKeyState(key) & 0x8000) != 0;
+        }
+
+        public static bool CircleIntersectsLine(Vector2 center, float r, Vector2 p0, Vector2 p1) {
+            var ac = center - p0;
+            var ab = p1 - p0;
+
+            var ab2 = Vector2.Dot(ab, ab);
+            var acab = Vector2.Dot(ac, ab);
+
+            var t = acab / ab2;
+            if (t < 0) {
+                t = 0;
+            } else if (t > 1) {
+                t = 1;
+            }
+            var h = ((ab*t) + p0) - center;
+            var h2 = Vector2.Dot(h, h);
+            return h2 < (r*r);
         }
     }
 }
